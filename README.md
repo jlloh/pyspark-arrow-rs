@@ -23,3 +23,30 @@ We are also able to pass in the expected schema by using serde_arrow (and a macr
 
 ## TL;DR
 This crate provides some macros that make life easier to be used together with `mapInArrow` as well as provide some recipes on how to leverage Rust in Pyspark
+
+### Example Usage
+```rust
+use pyspark_arrow_rs::HasArrowSparkSchema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, HasArrowSparkSchema)]
+pub(crate) struct TestStruct {
+    pub(crate) col: String,
+    pub(crate) int_col: i64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_macro() {
+        let _a = TestStruct {
+            col: "bla".to_string(),
+            int_col: 1000,
+        };
+        let ddl = TestStruct::get_spark_ddl();
+        assert_eq!("`col` STRING, `int_col` BIGINT", ddl.unwrap());
+    }
+}
+```
