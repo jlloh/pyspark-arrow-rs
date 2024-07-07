@@ -1,5 +1,8 @@
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use arrow::datatypes::{DataType, Field, FieldRef};
+use arrow::{
+    array::RecordBatch,
+    datatypes::{DataType, Field, FieldRef},
+};
 use serde_arrow::schema::{SchemaLike, TracingOptions};
 use std::sync::Arc;
 
@@ -91,6 +94,17 @@ where
             _ => field,
         })
         .collect()
+}
+
+/// Generic function to convert vec of structs into a recordbatch
+pub fn to_record_batch<A>(input: Vec<A>) -> AnyhowResult<RecordBatch>
+where
+    A: HasArrowSparkSchema + serde::Serialize + std::fmt::Debug,
+{
+    let fields = A::get_arrow_schema();
+    let record_batch = serde_arrow::to_record_batch(&fields, &input)
+        .with_context(|| format!("Failed to convert to Arrow Record Batch: {:?}", input))?;
+    Ok(record_batch)
 }
 
 // Reexport Macro
