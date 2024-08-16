@@ -1,6 +1,6 @@
 [package]
 name = "pyspark-arrow-rs"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["Loh Jia Long <jlloh89@gmail.com>"]
 repository = "https://github.com/jlloh/pyspark-arrow-rs"

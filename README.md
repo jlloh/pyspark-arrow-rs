@@ -25,6 +25,7 @@ We are also able to pass in the expected schema by using serde_arrow (and a macr
 This crate provides some macros that make life easier to be used together with `mapInArrow` as well as provide some recipes on how to leverage Rust in Pyspark
 
 ### Example Usage
+* Refer to `tests` folder for a real example. But the basic idea is, given a struct, you can generate a spark DDL to be used in `map_in_arrow` on a pyspark dataframe
 ```rust
 use pyspark_arrow_rs::HasArrowSparkSchema;
 use serde::{Deserialize, Serialize};
