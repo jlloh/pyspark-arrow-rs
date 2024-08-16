@@ -1,9 +1,12 @@
+mod spark_sql_types;
+
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use arrow::{
     array::RecordBatch,
     datatypes::{DataType, Field, FieldRef},
 };
 use serde_arrow::schema::{SchemaLike, TracingOptions};
+use spark_sql_types::SparkSqlType;
 use std::sync::Arc;
 
 pub trait HasArrowSparkSchema {
@@ -16,46 +19,47 @@ pub trait HasArrowSparkSchema {
 pub fn field_to_spark(arrow_field: &Arc<Field>) -> AnyhowResult<String> {
     match arrow_field.data_type() {
         DataType::Null => Err(anyhow!("Null not supported")),
-        DataType::Boolean => Ok("BOOLEAN".to_owned()),
+        DataType::Boolean => Ok(SparkSqlType::Boolean.to_string()),
         DataType::Int8
         | DataType::Int16
         | DataType::Int32
         | DataType::UInt8
         | DataType::UInt16
-        | DataType::UInt32 => Ok("INT".to_owned()),
-        DataType::Int64 | DataType::UInt64 => Ok("BIGINT".to_owned()),
-        DataType::Float16 | DataType::Float32 => Ok("FLOAT".to_owned()),
-        DataType::Float64 => Ok("DOUBLE".to_owned()),
-        DataType::Timestamp(_, _) => todo!(),
-        DataType::Date32 => todo!(),
-        DataType::Date64 => todo!(),
-        DataType::Time32(_) => todo!(),
-        DataType::Time64(_) => todo!(),
-        DataType::Duration(_) => todo!(),
-        DataType::Interval(_) => todo!(),
-        DataType::Binary => todo!(),
-        DataType::FixedSizeBinary(_) => todo!(),
-        DataType::LargeBinary => todo!(),
-        DataType::BinaryView => todo!(),
-        DataType::Utf8 => Ok("STRING".to_owned()),
-        DataType::LargeUtf8 => todo!(),
-        DataType::Utf8View => todo!(),
+        | DataType::UInt32 => Ok(SparkSqlType::Int.to_string()),
+        DataType::Int64 | DataType::UInt64 => Ok(SparkSqlType::BigInt.to_string()),
+        DataType::Float16 | DataType::Float32 => Ok(SparkSqlType::Float.to_string()),
+        DataType::Float64 => Ok(SparkSqlType::Double.to_string()),
+        DataType::Timestamp(_, _) => todo!("Timestamp not yet implemented"),
+        DataType::Date32 => todo!("Date32 not yet implemented"),
+        DataType::Date64 => todo!("Date64 not yet implemented"),
+        DataType::Time32(_) => todo!("Time32 not yet implemented"),
+        DataType::Time64(_) => todo!("Time64 not yet implemented"),
+        DataType::Duration(_) => todo!("Duration not yet implemented"),
+        DataType::Interval(_) => todo!("Interval not yet implemented"),
+        DataType::Binary => todo!("Binary not yet implemented"),
+        DataType::FixedSizeBinary(_) => todo!("FixedSizeBinary not yet implemented"),
+        DataType::LargeBinary => todo!("LargeBinary not yet implemented"),
+        DataType::BinaryView => todo!("BinaryView not yet implemented"),
+        DataType::Utf8 => Ok(SparkSqlType::String.to_string()),
+        DataType::LargeUtf8 => Err(anyhow!("LargeUtf8 not supported. Should have already been converted to utf8. Something went wrong.")),
+        DataType::Utf8View => todo!("Utf8View not yet implemented"),
         DataType::List(z) => {
-            let inner = field_to_spark(z)?;
-            let array = format!("ARRAY<{}>", inner);
+            let inner_type = field_to_spark(z)?;
+            let outer_type = SparkSqlType::Array.to_string();
+            let array = format!("{}<{}>", outer_type, inner_type);
             Ok(array)
         }
-        DataType::ListView(_) => todo!(),
-        DataType::FixedSizeList(_, _) => todo!(),
-        DataType::LargeList(_) => todo!(),
-        DataType::LargeListView(_) => todo!(),
-        DataType::Struct(_) => todo!(),
-        DataType::Union(_, _) => todo!(),
-        DataType::Dictionary(_, _) => todo!(),
-        DataType::Decimal128(_, _) => todo!(),
-        DataType::Decimal256(_, _) => todo!(),
-        DataType::Map(_, _) => todo!(),
-        DataType::RunEndEncoded(_, _) => todo!(),
+        DataType::ListView(_) => todo!("ListView not yet implemented"),
+        DataType::FixedSizeList(_, _) => todo!("FixedSizeList not yet implemented"),
+        DataType::LargeList(_) => todo!("LargeList not yet implemented"),
+        DataType::LargeListView(_) => todo!("LargeListView not yet implemented"),
+        DataType::Struct(_) => todo!("Struct not yet implemented"),
+        DataType::Union(_, _) => todo!("Union not yet implemented"),
+        DataType::Dictionary(_, _) => todo!("Dictionary not yet implemented"),
+        DataType::Decimal128(_, _) => todo!("Decimal128 not yet implemented"),
+        DataType::Decimal256(_, _) => todo!("Decimal256 not yet implemented"),
+        DataType::Map(_, _) => todo!("Map not yet implemented"),
+        DataType::RunEndEncoded(_, _) => todo!("RunEndEncoded not yet implemented"),
     }
 }
 
@@ -86,14 +90,25 @@ where
     fields
         .clone()
         .into_iter()
-        .map(|field| match field.data_type() {
-            DataType::LargeList(y) => {
-                Arc::new((*field).clone().with_data_type(DataType::List(y.clone())))
-            }
-            DataType::LargeUtf8 => Arc::new((*field).clone().with_data_type(DataType::Utf8)),
-            _ => field,
-        })
+        .map(convert_field_to_compatible)
         .collect()
+}
+
+fn convert_field_to_compatible(field: Arc<Field>) -> Arc<Field> {
+    match field.data_type() {
+        // Large list is not supported so we convert to list
+        DataType::LargeList(inner) => {
+            let converted_inner = convert_field_to_compatible(inner.clone());
+            Arc::new(
+                (*field)
+                    .clone()
+                    .with_data_type(DataType::List(converted_inner)),
+            )
+        }
+        // Largeutf8 is not supported so we convert it to utf8
+        DataType::LargeUtf8 => Arc::new((*field).clone().with_data_type(DataType::Utf8)),
+        _ => field,
+    }
 }
 
 /// Generic function to convert vec of structs into a recordbatch
