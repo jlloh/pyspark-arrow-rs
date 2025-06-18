@@ -53,12 +53,37 @@ pub fn field_to_spark(arrow_field: &Arc<Field>) -> AnyhowResult<String> {
         DataType::FixedSizeList(_, _) => todo!("FixedSizeList not yet implemented"),
         DataType::LargeList(_) => todo!("LargeList not yet implemented"),
         DataType::LargeListView(_) => todo!("LargeListView not yet implemented"),
-        DataType::Struct(_) => todo!("Struct not yet implemented"),
+        DataType::Struct(fields) => {
+            let field_strings: AnyhowResult<Vec<String>> = fields
+                .iter()
+                .map(|f| {
+                    let compatible_field = convert_field_to_compatible(f.clone());
+                    let spark_type = field_to_spark(&compatible_field)?;
+                    Ok(format!("{}: {}", f.name(), spark_type))
+                })
+                .collect();
+            let struct_fields = field_strings?.join(", ");
+            let outer_type = SparkSqlType::Struct.to_string();
+            Ok(format!("{}<{}>", outer_type, struct_fields))
+        }
         DataType::Union(_, _) => todo!("Union not yet implemented"),
         DataType::Dictionary(_, _) => todo!("Dictionary not yet implemented"),
         DataType::Decimal128(_, _) => todo!("Decimal128 not yet implemented"),
         DataType::Decimal256(_, _) => todo!("Decimal256 not yet implemented"),
-        DataType::Map(_, _) => todo!("Map not yet implemented"),
+        DataType::Map(inner, _) => {
+            match inner.data_type() {
+                DataType::Struct(fields) if fields.len() == 2 => {
+                    let key_field = convert_field_to_compatible(fields[0].clone());
+                    let value_field = convert_field_to_compatible(fields[1].clone());
+                    let key_type = field_to_spark(&key_field)?;
+                    let value_type = field_to_spark(&value_field)?;
+                    let outer_type = SparkSqlType::Map.to_string();
+                    let array = format!("{}<{},{}>", outer_type, key_type, value_type);
+                    Ok(array)
+                }
+                other => Err(anyhow!("Expected Struct with 2 fields for Map, got {:?}", other)),
+            }
+        }
         DataType::RunEndEncoded(_, _) => todo!("RunEndEncoded not yet implemented"),
     }
 }
@@ -86,7 +111,7 @@ pub fn get_arrow_schema<A>() -> Vec<Arc<Field>>
 where
     A: for<'a> serde::Deserialize<'a>,
 {
-    let fields = Vec::<FieldRef>::from_type::<A>(TracingOptions::default()).unwrap();
+    let fields = Vec::<FieldRef>::from_type::<A>(TracingOptions::default().map_as_struct(false)).unwrap();
     fields
         .clone()
         .into_iter()
