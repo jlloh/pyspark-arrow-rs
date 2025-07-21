@@ -45,7 +45,8 @@ pub fn field_to_spark(arrow_field: &Arc<Field>) -> AnyhowResult<String> {
         DataType::Utf8View => todo!("Utf8View not yet implemented"),
         DataType::LargeList(z)
         | DataType::List(z) => {
-            let inner_type = field_to_spark(z)?;
+            let compatible_field = convert_field_to_compatible(z.clone());
+            let inner_type = field_to_spark(&compatible_field)?;
             let outer_type = SparkSqlType::Array.to_string();
             let array = format!("{}<{}>", outer_type, inner_type);
             Ok(array)
