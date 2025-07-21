@@ -43,7 +43,8 @@ pub fn field_to_spark(arrow_field: &Arc<Field>) -> AnyhowResult<String> {
         DataType::Utf8 => Ok(SparkSqlType::String.to_string()),
         DataType::LargeUtf8 => Err(anyhow!("LargeUtf8 not supported. Should have already been converted to utf8. Something went wrong.")),
         DataType::Utf8View => todo!("Utf8View not yet implemented"),
-        DataType::List(z) => {
+        DataType::LargeList(z)
+        | DataType::List(z) => {
             let inner_type = field_to_spark(z)?;
             let outer_type = SparkSqlType::Array.to_string();
             let array = format!("{}<{}>", outer_type, inner_type);
@@ -51,7 +52,6 @@ pub fn field_to_spark(arrow_field: &Arc<Field>) -> AnyhowResult<String> {
         }
         DataType::ListView(_) => todo!("ListView not yet implemented"),
         DataType::FixedSizeList(_, _) => todo!("FixedSizeList not yet implemented"),
-        DataType::LargeList(_) => todo!("LargeList not yet implemented"),
         DataType::LargeListView(_) => todo!("LargeListView not yet implemented"),
         DataType::Struct(fields) => {
             let field_strings: AnyhowResult<Vec<String>> = fields
