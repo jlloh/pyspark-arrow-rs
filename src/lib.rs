@@ -111,7 +111,7 @@ pub fn get_arrow_schema<A>() -> Vec<Arc<Field>>
 where
     A: for<'a> serde::Deserialize<'a>,
 {
-    let fields = Vec::<FieldRef>::from_type::<A>(TracingOptions::default().map_as_struct(false)).unwrap();
+    let fields = Vec::<FieldRef>::from_type::<A>(TracingOptions::default().map_as_struct(false).sequence_as_large_list(false)).unwrap();
     fields
         .clone()
         .into_iter()
