@@ -8,6 +8,8 @@ pub(crate) enum SparkSqlType {
     Int,
     BigInt,
     Array,
+    Map,
+    Struct
 }
 
 impl fmt::Display for SparkSqlType {
@@ -20,6 +22,8 @@ impl fmt::Display for SparkSqlType {
             SparkSqlType::Int => write!(f, "INT"),
             SparkSqlType::BigInt => write!(f, "BIGINT"),
             SparkSqlType::Array => write!(f, "ARRAY"),
+            SparkSqlType::Map => write!(f, "MAP"),
+            SparkSqlType::Struct => write!(f, "STRUCT"),
         }
     }
 }
